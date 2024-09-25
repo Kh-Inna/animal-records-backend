@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ data.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <img src="{{ data.photo }}" class="more-photo">
+    <div class="more-title-head">{{ data.title }}</div>
+    <div class="description">{{ data.description }}</div>
+</div>
+{% endblock %}

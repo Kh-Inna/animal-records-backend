@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Заявка{% endblock %}
+{% load static %}
+{% block content %}
+<div class="title-head">Заявка</div>
+<div class="parameters-container">
+    <div class="parameters">Введите животное</div>
+    <div class="parameters">Период</div>
+    <div class="parameters">Место обитания</div>
+</div>
+<div class="cart-container">
+    {% for category in categories %}
+        <div class="cart-card">
+            <a href="#">
+                <img src="{{ category.photo }}" class="photo">
+            </a>
+            <div class="card-title">{{ category.title }}</div>
+            <div class="cart-measurement">{{ category.measurement }}</div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

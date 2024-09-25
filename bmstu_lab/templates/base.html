@@ -1,0 +1,24 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-100">
+<head>
+  <meta charset="utf-8">
+    <title>{% block title %}Категории животных{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<div class="header">
+  <a href="{% url 'categories'%}">
+  <div class="container">
+    <img src="http://127.0.0.1:9000/pic/icon.png" alt="Icon" class="icon-image">
+    <div class="icon">
+      <span>Животные</span> 
+      <span>рекордсмены</span>
+    </div>
+  </div>
+  </a>
+</div>
+<body>
+    {% block content %}
+    {% endblock %}
+</body>
+</html>
