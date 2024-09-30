@@ -51,7 +51,6 @@ animal_list = [
     }
 ]
 
-
 def get_category_list(request):
     category_query = request.GET.get('category')
     if category_query:
