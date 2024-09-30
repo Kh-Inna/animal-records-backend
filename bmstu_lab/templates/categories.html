@@ -1,17 +1,12 @@
 {% extends 'base.html' %}
-
 {% block title %}Категории животных{% endblock %}
-
 {% block content %}
 {% load static %}
 <ul>
     <div class="title-head">Категории</div>
-
     <form action="{% url 'categories' %}" method="get">
-        <input type="text" name="q" placeholder="Поиск" class="search" value="{{ data.category_query }}">
-      </form>
-      
-        
+        <input type="text" name="category" placeholder="Поиск" class="search" value="{{ data.category_query }}">
+    </form>
     <div class="card-container">
     {% for category in data.categories %}  
             <div class="card">
@@ -23,16 +18,14 @@
                     <button class="learn-more-button">Подробнее</button>
                 </a>
             </div>
-        
     {% empty %}
         <li>Ничего не найдено</li>
     {% endfor %}
     </div>
-    <a href="{% url 'application' data.app_id %}">
+    <a href="{% url 'animal' data.animal_id %}">
         <button class="cart-button">
-            <span class="cart-count">2</span> <img src="http://127.0.0.1:9000/pic/basket.png" class="cart-image">
+            <span class="cart-count">{{data.animal_cnt}}</span> <img src="http://127.0.0.1:9000/pic/basket.png" class="cart-image">
         </button>
     </a>
 </ul>
 {% endblock %}
-

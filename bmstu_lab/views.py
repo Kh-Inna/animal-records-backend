@@ -6,75 +6,69 @@ category_list =[
         'id': 0,
         'title': 'Самые большие',
         'photo': 'http://127.0.0.1:9000/pic/photo_1.jpg',
-        'description': 'К этой категории относятся самые большие по размеру животные своего вида. Например: синий кит, африканский слон, гигансткий кальмар.',
+        'measurement': 'Метров:',
+        'description': 'К этой категории относятся самые большие по размеру животные своего вида. Например: синий кит, африканский слон, гигансткий кальмар. Единицы измерения: метры.',
     },
     {
         'id': 1,
         'title': 'Самые быстрые',
         'photo': 'http://127.0.0.1:9000/pic/photo_2.jpeg',
-        'description': 'К этой категории относятся самые быстрые по размеру животные своего вида. Например: сапсан, гепард, рыба-парусник.',
+        'measurement': 'Км/ч:',
+        'description': 'К этой категории относятся самые быстрые животные своего вида. Например: сапсан, гепард, рыба-парусник. Единицы измерения: км/ч.',
     },
     {
         'id': 2,
         'title': 'Самые старые',
         'photo': 'http://127.0.0.1:9000/pic/photo_3.jpg',
-        'description': 'К этой категории относятся самые долгоживущие по размеру животные своего вида. Например: гренландский кит, оеанская мидия, гигантская морская черепаха.',
+        'measurement': 'Лет:',
+        'description': 'К этой категории относятся самые долгоживущие животные своего вида. Например: гренландский кит, океанская мидия, гигантская морская черепаха. Единицы измерения: года.',
     },
     {
         'id': 3,
         'title': 'Самые громкие',
         'photo': 'http://127.0.0.1:9000/pic/photo_4.jpg',
-        'description': 'К этой категории относятся самые громкие по размеру животные своего вида. Например: синий кит, голубой кит, африканский слон.',
+        'measurement': 'дБ:',
+        'description': 'К этой категории относятся самые громкие животные своего вида. Например: синий кит, голубой кит, африканский слон Единицы измерения: дБ.',
     }
 ]
 
-category_app =[{
+animal_list = [
+    {
         'id': 0,
-        'category': [
-        {
-            'id': 0,
-            'title': 'Самые большие',
-            'photo': 'http://127.0.0.1:9000/pic/photo_1.jpg',
-            'measurement': 'Метров:',
-        },
-        {
-            'id': 2,
-            'title': 'Самые старые',
-            'photo': 'http://127.0.0.1:9000/pic/photo_3.jpg',
-            'measurement': 'Лет:',
-        }]},
-        {
-        'id': 1,
-        'category': [
-        {
-            'id': 0,
-            'title': 'Самые большие',
-            'photo': 'http://127.0.0.1:9000/pic/photo_1.jpg',
-            'measurement': 'Метров:',
-        },
-        {
-            'id': 3,
-            'title': 'Самые громкие',
-            'photo': 'http://127.0.0.1:9000/pic/photo_4.jpg',
-            'measurement': 'дБ:',
-        }]}
+        'animal': 'Синий кит',
+        'period': 'Четвертичный',
+        'habitat': 'Океан',
+        'categories': [
+            {
+                'category': category_list[0],
+                'record': 200
+            },
+            {
+                'category': category_list[2],
+                'record': 188
+            }
+        ]
+    }
 ]
 
+
 def get_category_list(request):
-    category_query = request.GET.get('q')
+    category_query = request.GET.get('category')
     if category_query:
         filtered_categories = [category for category in category_list if category_query.lower() in category['title'].lower()]
         return render(request, 'categories.html', { 'data' : {
             'current_date': date.today(),
             'categories': filtered_categories,
             'category_query': category_query,
-            'app_id' : category_app[0]['id'],
+            'animal_id': animal_list[0]['id'],
+            'animal_cnt': len(animal_list[0]['categories'])
         }})
     else:
         return render(request, 'categories.html', { 'data' : {
             'current_date': date.today(),
             'categories': category_list,
-            'app_id' : category_app[0]['id'],
+            'animal_id' : animal_list[0]['id'],
+            'animal_cnt': len(animal_list[0]['categories'])
         }})
 
 def get_category_detail(request, id):
@@ -91,8 +85,8 @@ def get_category_detail(request, id):
     else:
         return render(request, 'category.html', {'error_message': 'Category not found'})
 
-def get_application(request, id):
-    for categories in category_app:
-        if categories['id'] == id:
-            return render(request, 'application.html', {'categories': categories['category']})
-    return render(request, 'error.html', {'message': 'Category not found'}) 
+def get_animal(request, id):
+    for animal in animal_list:
+        if animal['id'] == int(id):
+            return render(request, 'animal.html', {'animal': animal})
+    return render(request, 'error.html', {'message': 'Animal not found'})

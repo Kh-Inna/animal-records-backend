@@ -234,6 +234,8 @@
     flex-wrap: wrap; 
     grid-template-columns: repeat(3,3fr);
     padding: 10px;
+    justify-content: center; 
+    align-items: center;
 }
 
 .parameters {
@@ -241,13 +243,9 @@
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 20px;
     padding: 10px;
-    width: 500px;
+    width: 250px;
     margin: 10px;
     display: flex; 
     justify-content: center; 
     align-items: center;
-}
-.search-txt{
-    margin-top: 500px;
-    background: linear-gradient(109.11deg,#006455 27.14%,#20c293 112.3%);
 }

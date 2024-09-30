@@ -4,20 +4,21 @@
 {% block content %}
 <div class="title-head">Заявка</div>
 <div class="parameters-container">
-    <div class="parameters">Введите животное</div>
-    <div class="parameters">Период</div>
-    <div class="parameters">Место обитания</div>
+    <div class="parameters">{{ animal.animal }}</div>
+    <div class="parameters">{{ animal.period }}</div>
+    <div class="parameters">{{ animal.habitat }}</div>
 </div>
 <div class="cart-container">
-    {% for category in categories %}
+    {% for category_data in animal.categories %}
+        {% with category=category_data.category record=category_data.record %}
         <div class="cart-card">
             <a href="#">
                 <img src="{{ category.photo }}" class="photo">
             </a>
             <div class="card-title">{{ category.title }}</div>
-            <div class="cart-measurement">{{ category.measurement }}</div>
+            <div class="cart-measurement">{{ category.measurement }} {{ record }}</div>
         </div>
+        {% endwith %}
     {% endfor %}
 </div>
 {% endblock %}
-
