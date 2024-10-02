@@ -17,15 +17,29 @@
                 <a href="{% url 'category_detail' category.id %}">  
                     <button class="learn-more-button">Подробнее</button>
                 </a>
+                
+                <form action="{% url 'add_to_animal' data.animal_id category.id %}" method="post">
+                    {% csrf_token %}
+                    <button class="add-button">Добавить</button>
+                </form>
+            
             </div>
     {% empty %}
         <li>Ничего не найдено</li>
     {% endfor %}
     </div>
+    {% if data.animal_cnt > 0 %}
     <a href="{% url 'animal' data.animal_id %}">
         <button class="cart-button">
             <span class="cart-count">{{data.animal_cnt}}</span> <img src="http://127.0.0.1:9000/pic/basket.png" class="cart-image">
         </button>
     </a>
+{% else %}
+    <button class="cart-button disabled">
+        <span class="cart-count">{{data.animal_cnt}}</span> <img src="http://127.0.0.1:9000/pic/basket.png" class="cart-image">
+    </button>
+{% endif %}
+
+
 </ul>
 {% endblock %}

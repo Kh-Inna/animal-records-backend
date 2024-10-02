@@ -114,7 +114,7 @@
     padding: 10px;
     gap: 10px;
     position: absolute;
-    left: 230px; 
+    left: 230px;
     bottom: 20px;
     background: #006455;
     border: 1px solid #006455;
@@ -131,6 +131,7 @@
     color: #FFFFFF;
     cursor: pointer;
 }
+
 .cart-button {
     position: absolute;
     width: 100px;
@@ -248,4 +249,43 @@
     display: flex; 
     justify-content: center; 
     align-items: center;
+}
+
+.add-button {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    gap: 10px;
+    position: absolute;
+    left: 350px; 
+    bottom: 20px;
+    background: #006455;
+    border: 1px solid #006455;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 20px;
+    font-family: 'Comfortaa';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 18px;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+.delete-button{
+    background: #006455;
+    border: 1px solid #006455;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    width: calc(50%);
+    color: #FFFFFF;
+    cursor: pointer;
+    justify-content: center;
+    margin: 0 auto;
+    padding: 10px;
+    gap: 10px;
+    border-radius: 20px;
 }

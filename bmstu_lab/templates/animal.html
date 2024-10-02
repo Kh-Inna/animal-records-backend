@@ -1,24 +1,37 @@
 {% extends 'base.html' %}
 {% block title %}Заявка{% endblock %}
 {% load static %}
+
 {% block content %}
 <div class="title-head">Заявка</div>
+
 <div class="parameters-container">
-    <div class="parameters">{{ animal.animal }}</div>
-    <div class="parameters">{{ animal.period }}</div>
-    <div class="parameters">{{ animal.habitat }}</div>
+    <div class="parameters"> {{ animal.animal }}</div>
+    <div class="parameters"> {{ animal.period }}</div>
+    <div class="parameters"> {{ animal.habitat }}</div>
 </div>
+
 <div class="cart-container">
-    {% for category_data in animal.categories %}
-        {% with category=category_data.category record=category_data.record %}
-        <div class="cart-card">
-            <a href="#">
-                <img src="{{ category.photo }}" class="photo">
-            </a>
-            <div class="card-title">{{ category.title }}</div>
-            <div class="cart-measurement">{{ category.measurement }} {{ record }}</div>
-        </div>
-        {% endwith %}
-    {% endfor %}
+    {% if categories %}
+        {% for category_data in categories %}
+            {% with category=category_data.category record=category_data.record %}
+            <div class="cart-card">
+                <a href="#">
+                    <img src="{{ category.photo }}" alt="{{ category.title }}" class="photo">
+                </a>
+                <div class="card-title">{{ category.title }}</div>
+                <div class="cart-measurement">{{ category.measurement }} {{ record }}</div>
+            </div>
+            
+            {% endwith %}
+        {% endfor %}
+    {% else %}
+        <p>У этого животного нет категорий.</p>
+    {% endif %}
 </div>
+<form action="{% url 'delete_animal' animal.id %}" method="post">
+    {% csrf_token %}
+    <button type="submit" class="delete-button">Удалить заявку</button>
+</form>
 {% endblock %}
+
