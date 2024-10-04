@@ -10,12 +10,13 @@ from bmstu_lab.models import Category, Animal, AnimalCategory
 def get_category_list(request):
     category_query = request.GET.get('category')
     categories = Category.objects.all()
-    category_query = ''
     if category_query:
         categories = categories.filter(title__icontains=category_query)
+    else:
+        category_query = ''
     last_draft_animal = Animal.objects.filter(status="DRAFT").order_by('-creation_date').first()
     animal_id = last_draft_animal.id if last_draft_animal else 0
-    animal_cnt = Animal.objects.filter(status="DRAFT").count()
+    animal_cnt = AnimalCategory.objects.filter(animal__status="DRAFT").count()
     context = {
         'data': {
             'current_date': timezone.now().date(),
@@ -39,13 +40,16 @@ def get_category_detail(request, id):
     })
 
 def get_animal(request, id):
-    animal = get_object_or_404(Animal, pk=id)  
-    categories = AnimalCategory.objects.filter(animal=animal)
-    formatted_categories = [
-        {'category': category.category, 'record': category.record} 
-        for category in categories
-    ]
-    return render(request, 'animal.html', {'animal': animal, 'categories': formatted_categories})
+  animal = get_object_or_404(Animal, pk=id)
+  if animal.status == "DELETE":
+    return redirect('categories')
+  categories = AnimalCategory.objects.filter(animal=animal)
+  formatted_categories = [
+    {'category': category.category, 'record': category.record} 
+    for category in categories
+  ]
+  return render(request, 'animal.html', {'animal': animal, 'categories': formatted_categories})
+
 
 def add_category_to_animal(animal_id, category_id):
     with transaction.atomic():
@@ -89,37 +93,31 @@ def add_to_animal(request, animal_id, category_id):
     else:
         return redirect('categories')
     
-
-def remove_category(request, animal_id, category_id):
-    if request.method == 'POST':
-        try:
-            AnimalCategory.objects.get(animal_id=animal_id, category_id=category_id).delete()
-            return redirect(reverse('animal', args=[animal_id]))  
-        except AnimalCategory.DoesNotExist:
-            messages.error(request, "Категория не найдена.")
-            return redirect(reverse('animal', args=[animal_id]))
-    else:
-        return redirect('categories') 
     
 def delete_animal_and_related_categories(animal_id):
-    with transaction.atomic():
-        AnimalCategory.objects.filter(animal_id=animal_id).delete()
-        animal = Animal.objects.get(pk=animal_id)
-        animal.status = "DELETE"
-        animal.save()
+  with transaction.atomic():
+    with connection.cursor() as cursor:
+      cursor.execute(
+        "UPDATE animal SET status = 'DELETE' WHERE id = %s",
+        [animal_id]
+      )
+    AnimalCategory.objects.filter(animal_id=animal_id).delete()
 
-    return True
+  return True
+
 
 def delete_animal(request, animal_id):
-    if request.method == 'POST':
-        try:
-            animal = Animal.objects.get(pk=animal_id)
-            animal.status = "DELETE" 
-            animal.save()
-            messages.success(request, "Заявка успешно удалена.")
-            return redirect('categories') 
-        except Animal.DoesNotExist:
-            messages.error(request, "Заявка не найдена.")
-            return redirect('categories')
-    else:
-        return redirect('categories')
+  if request.method == 'POST':
+    try:
+      with connection.cursor() as cursor:
+        cursor.execute(
+          "UPDATE animal SET status = 'DELETE' WHERE id = %s",
+          [animal_id]
+        )
+      messages.success(request, "Заявка успешно удалена.")
+      return redirect('categories')
+    except Exception as e: 
+      messages.error(request, f"Ошибка при удалении заявки: {e}")
+      return redirect('categories')
+  else:
+    return redirect('categories')

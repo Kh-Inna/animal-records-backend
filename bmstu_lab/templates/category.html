@@ -4,6 +4,11 @@
 <div class="container">
     <img src="{{ data.photo }}" class="more-photo">
     <div class="more-title-head">{{ data.title }}</div>
-    <div class="description">{{ data.description }}</div>
+    <div class="description">
+        {{ data.description }}
+        <br>
+        Данные измеряются в {{data.measurement}}
+    </div>
 </div>
 {% endblock %}
+
