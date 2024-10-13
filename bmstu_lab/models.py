@@ -8,6 +8,7 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
 
     class Meta:
+        managed = False
         db_table = 'category'
 
 class Animal(models.Model):
@@ -33,3 +34,4 @@ class AnimalCategory(models.Model):
     class Meta:
         managed = False
         db_table = 'animal_category'
+        unique_together = (('animal', 'category'),)

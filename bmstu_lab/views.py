@@ -1,7 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.db import connection, transaction
-from django.db.models import Q
-from django.urls import reverse
 from django.contrib import messages
 from datetime import date
 from django.utils import timezone
@@ -36,6 +34,7 @@ def get_category_detail(request, id):
             'title': category.title,
             'photo': category.photo,
             'description': category.description,
+            'measurement': category.measurement,
         }
     })
 
