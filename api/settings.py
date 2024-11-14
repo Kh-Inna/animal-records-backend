@@ -37,8 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'drf_yasg',
     # DRF
     'rest_framework',
+    'rest_framework.authtoken',
 
     # Наше приложение
     'category',
@@ -125,6 +127,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = []
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -136,3 +139,6 @@ MINIO_ACCESS_KEY = 'minioadmin'
 MINIO_SECRET_KEY = 'miniopassword'
 MINIO_SECURE = False
 MINIO_BUCKET_NAME = 'pic'
+
+REDIS_HOST = '127.0.0.1'
+REDIS_PORT = 6379

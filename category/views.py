@@ -1,52 +1,90 @@
 import os
+import random
+import uuid
+
 from datetime import datetime, timedelta
-from django.utils import timezone
+
 from dateutil.parser import parse
-from django.db.models import Q
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Category, Animal, AnimalCategory
-from .serializers import FullAnimalSerializer, CategorySerializer, AnimalSerializer, PutAnimalSerializer, ResolveAnimalSerializer, AnimalCategorySerializer, UserSerializer
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from .minio import MinioStorage
-from api import settings
-from django.contrib.auth.models import User
-from rest_framework.response import Response
-from rest_framework import status
+
 from django.contrib.auth import authenticate
-from rest_framework.authtoken.models import Token
-from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
+from django.db import IntegrityError
+from django.db.models import Q
+from django.utils import timezone
+
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+
+from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
+from rest_framework.parsers import FormParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+
+from api import settings
+from .auth import AuthBySessionID, AuthBySessionIDIfExists, IsAuth, IsManagerAuth
+from .minio import MinioStorage
+from .models import Animal, AnimalCategory, Category
+from .serializers import *
+from .redis import session_storage
+
 
 SINGLETON_USER = User(id=1, username="admin")
 SINGLETON_MANAGER = User(id=2, username="manager")
 
-# Категория (услуга)
 
+
+# Категория (услуга)
+@swagger_auto_schema(method='get',
+                     manual_parameters=[
+                         openapi.Parameter('category_title',
+                                           type=openapi.TYPE_STRING,
+                                           description='category_title',
+                                           in_=openapi.IN_QUERY),
+                     ],
+                     responses={
+                         status.HTTP_200_OK: GetCategorySerializer,
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['GET'])
+@permission_classes([AllowAny])
+@authentication_classes([AuthBySessionIDIfExists])
 def get_category_list(request):
     """
     Получение списка категорий
     """
+    user = request.user
     category_title = request.query_params.get("category_title", "")
     category_list = Category.objects.filter(title__istartswith=category_title, is_active=True).order_by('title')
-    req = Animal.objects.filter(creator_id=SINGLETON_USER.id, status=Animal.RequestStatus.DRAFT).first()
     
+    req = None
     items_in_cart = 0
-    if req is not None:
-        items_in_cart = AnimalCategory.objects.filter(animal=req.id).count()
-    serializer = CategorySerializer(category_list, many=True)
-    return Response(
+
+    if user is not None:
+        req = Animal.objects.filter(creator_id=user.pk, status=Animal.RequestStatus.DRAFT).first()
+        if req is not None:
+            items_in_cart = AnimalCategory.objects.filter(animal=req.id).count()
+    
+    serializer = GetCategorySerializer(
         {
-            "categories": serializer.data,
+            "categories": CategorySerializer(category_list,many=True).data,
             "animal_id": req.id if req else None,
             "items_in_cart": items_in_cart,
         },
-        status=status.HTTP_200_OK
     )
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='post',
+                     request_body=CategorySerializer,
+                     responses={
+                         status.HTTP_200_OK: CategorySerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['POST'])
+@permission_classes([IsManagerAuth])
 def post_category(request):
     """
     Добавление категории
@@ -59,7 +97,19 @@ def post_category(request):
     serializer = CategorySerializer(new_category)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method="post",
+                     manual_parameters=[
+                         openapi.Parameter(name="photo",
+                                           in_=openapi.IN_QUERY,
+                                           type=openapi.TYPE_FILE,
+                                           required=True, description="photo")],
+                     responses={
+                         status.HTTP_200_OK: "OK",
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['POST'])
+@permission_classes([IsManagerAuth])
 def post_category_image(request, pk):
     """
     Загрузка изображения категории в Minio
@@ -89,7 +139,13 @@ def post_category_image(request, pk):
     category.save()
     return Response(status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='get',
+                     responses={
+                         status.HTTP_200_OK: CategorySerializer(),
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_category(request, pk):
     """
     Получение категории
@@ -100,7 +156,14 @@ def get_category(request, pk):
     serialized_category = CategorySerializer(category)
     return Response(serialized_category.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='delete',
+                     responses={
+                         status.HTTP_200_OK: "OK",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['DELETE'])
+@permission_classes([IsManagerAuth])
 def delete_category(request, pk):
     """
     Удаление категории
@@ -131,7 +194,16 @@ def delete_category(request, pk):
     
     return Response(status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='put',
+                     request_body=CategorySerializer,
+                     responses={
+                         status.HTTP_200_OK: CategorySerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['PUT'])
+@permission_classes([IsManagerAuth])
 def put_category(request, pk):
     """
     Изменение категории
@@ -147,7 +219,16 @@ def put_category(request, pk):
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@swagger_auto_schema(method='post',
+                     responses={
+                         status.HTTP_200_OK: "OK",
+                         status.HTTP_400_BAD_REQUEST: "Bad request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['POST'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def post_category_to_request(request, pk):
     """
     Добавление категории в заявку животного
@@ -185,7 +266,30 @@ def add_item_to_request(animal_id: int, category_id: int):
 
 # Животное (заявка)
 
+@swagger_auto_schema(method='get',
+                     manual_parameters=[
+                         openapi.Parameter('status',
+                                           type=openapi.TYPE_STRING,
+                                           description='status',
+                                           in_=openapi.IN_QUERY),
+                         openapi.Parameter('formation_start',
+                                           type=openapi.TYPE_STRING,
+                                           description='status',
+                                           in_=openapi.IN_QUERY,
+                                           format=openapi.FORMAT_DATETIME),
+                         openapi.Parameter('formation_end',
+                                           type=openapi.TYPE_STRING,
+                                           description='status',
+                                           in_=openapi.IN_QUERY,
+                                           format=openapi.FORMAT_DATETIME),
+                     ],
+                     responses={
+                         status.HTTP_200_OK: AnimalSerializer(many=True),
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['GET'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def get_animal(request):
     """
     Получение списка заявок животных
@@ -207,7 +311,15 @@ def get_animal(request):
 
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='get',
+                     responses={
+                         status.HTTP_200_OK: FullAnimalSerializer(),
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['GET'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def get_animal_request(request, pk):
     """
     Получение животного
@@ -220,7 +332,17 @@ def get_animal_request(request, pk):
     serializer = FullAnimalSerializer(animal)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(method='put',
+                     request_body=PutAnimalSerializer,
+                     responses={
+                         status.HTTP_200_OK: PutAnimalSerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['PUT'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def put_animal(request, pk):
     """
     Изменение животного
@@ -235,8 +357,17 @@ def put_animal(request, pk):
         return Response(serializer.data)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+@swagger_auto_schema(method='put',
+                     responses={
+                         status.HTTP_200_OK: AnimalSerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['PUT'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def form_animal(request, pk):
     """
     Формирование заявки животного
@@ -251,9 +382,15 @@ def form_animal(request, pk):
     serializer = AnimalSerializer(animal)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-
+@swagger_auto_schema(method='put',
+                     responses={
+                         status.HTTP_200_OK: ResolveAnimalSerializer(),
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['PUT'])
+@permission_classes([IsManagerAuth])
+@authentication_classes([AuthBySessionID])
 def resolve_animal(request, pk):
     """
     Закрытие заявки животного
@@ -271,13 +408,21 @@ def resolve_animal(request, pk):
     animal = Animal.objects.get(id=pk)
     animal.completion_date = datetime.now()
     animal.SINGLETON_MANAGER = SINGLETON_MANAGER
-    animal.record_date = animal.completion_date + timedelta(days=30) 
+    animal.record_date = animal.completion_date + timedelta(days=random.randint(1, 30))
     animal.save()
 
     serializer = AnimalSerializer(animal)
     return Response(serializer.data)
 
+@swagger_auto_schema(method='delete',
+                     responses={
+                         status.HTTP_200_OK: "OK",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['DELETE'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def delete_animal(request, pk):
     """
     Удаление животного
@@ -291,8 +436,17 @@ def delete_animal(request, pk):
     return Response(status=status.HTTP_200_OK)
 
 # Рекорд (м-м)
-
+@swagger_auto_schema(method='put',
+                     request_body=AnimalCategorySerializer,
+                     responses={
+                         status.HTTP_200_OK: AnimalCategorySerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['PUT'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def put_record(request, animal_pk, category_pk):
     """
     Изменение данных о рекорде в заявке
@@ -308,7 +462,15 @@ def put_record(request, animal_pk, category_pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@swagger_auto_schema(method='delete',
+                     responses={
+                         status.HTTP_200_OK: "OK",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                         status.HTTP_404_NOT_FOUND: "Not Found",
+                     })
 @api_view(['DELETE'])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def delete_record(request, animal_pk, category_pk):
     """
     Удаление рекорда из заявки
@@ -321,7 +483,14 @@ def delete_record(request, animal_pk, category_pk):
 
 # Пользователь
 
+@swagger_auto_schema(method='post',
+                     request_body=UserSerializer,
+                     responses={
+                         status.HTTP_201_CREATED: "Created",
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                     })
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def create_user(request):
     """
     Создание пользователя
@@ -333,7 +502,26 @@ def create_user(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@swagger_auto_schema(method='post',
+                     responses={
+                         status.HTTP_204_NO_CONTENT: "No content",
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                     },
+                     manual_parameters=[
+                         openapi.Parameter('username',
+                                           type=openapi.TYPE_STRING,
+                                           description='username',
+                                           in_=openapi.IN_FORM,
+                                           required=True),
+                         openapi.Parameter('password',
+                                           type=openapi.TYPE_STRING,
+                                           description='password',
+                                           in_=openapi.IN_FORM,
+                                           required=True)
+                     ])
 @api_view(['POST'])
+@parser_classes((FormParser,))
+@permission_classes([AllowAny])
 def login_user(request):
     """
     Вход
@@ -342,31 +530,48 @@ def login_user(request):
     password = request.POST.get('password')
     user = authenticate(username=username, password=password)
     if user is not None:
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({'token': token.key}, status=status.HTTP_200_OK)
+        session_id = str(uuid.uuid4())
+        session_storage.set(session_id, username)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        response.set_cookie("session_id", session_id, samesite="lax")
+        return response
     return Response({'error': 'Invalid Credentials'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@swagger_auto_schema(method='post',
+                     responses={
+                         status.HTTP_204_NO_CONTENT: "No content",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuth])
 def logout_user(request):
     """
     Выход
     """
-    request.auth.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    session_id = request.COOKIES["session_id"]
+    if session_storage.exists(session_id):
+        session_storage.delete(session_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    return Response(status=status.HTTP_403_FORBIDDEN)
 
 
+@swagger_auto_schema(method='put',
+                     request_body=UserUpdateSerializer,
+                     responses={
+                         status.HTTP_200_OK: UserSerializer(),
+                         status.HTTP_400_BAD_REQUEST: "Bad Request",
+                         status.HTTP_403_FORBIDDEN: "Forbidden",
+                     })
 @api_view(['PUT'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuth])
+@authentication_classes([AuthBySessionID])
 def update_user(request):
     """
     Обновление данных пользователя
     """
-    user = request.user
-    serializer = UserSerializer(user, data=request.data, partial=True)
+    serializer = UserSerializer(request.user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
